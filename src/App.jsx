@@ -15,6 +15,7 @@ const moduleItems = [
   ['dma', '04', 'DMA', 'Bus y transferencias'],
   ['mmio', '05', 'MMIO / PMIO', 'Registros y puertos'],
   ['quiz', '06', 'Reto final', 'Comprueba lo aprendido'],
+  ['arena', '07', 'Arena de clase', 'Batalla de rendimiento'],
 ]
 
 const mechanisms = {
@@ -59,6 +60,7 @@ function App() {
         {module === 'dma' && <DmaModule />}
         {module === 'mmio' && <MmioModule />}
         {module === 'quiz' && <QuizModule />}
+        {module === 'arena' && <ArenaModule />}
       </div>
       <div className="notice disclaimer">Simulador educativo. Los tiempos y porcentajes representan un modelo simplificado y no sustituyen mediciones reales de hardware.</div>
       <footer><span>Sistemas Operativos · Equipo 2</span><span>Aprender haciendo <b>●</b></span></footer>
@@ -195,6 +197,52 @@ function QuizModule() {
   const choose = (option) => { if (answer !== null) return; setAnswer(option); if (option === question.correct) setScore((value) => value + 1) }
   const next = () => { setAnswer(null); setIndex((value) => (value + 1) % questions.length) }
   return <section><ModuleHeader eyebrow="06 · Pon a prueba tus conocimientos" title="Reto final" description="Responde, recibe una explicación inmediata y vuelve a intentarlo. La puntuación acompaña el aprendizaje, no lo sustituye." /><div className="quiz-card panel"><div className="quiz-top"><span>Pregunta {index + 1} de {questions.length}</span><strong>{score} aciertos</strong></div><div className="quiz-progress"><i style={{ width: `${((index + 1) / questions.length) * 100}%` }} /></div><h3>{question.q}</h3><div className="quiz-options">{question.options.map((option, optionIndex) => <button key={option} className={answer === optionIndex ? optionIndex === question.correct ? 'correct' : 'wrong' : ''} onClick={() => choose(optionIndex)}>{option}</button>)}</div>{answer !== null && <div className={answer === question.correct ? 'answer-note correct' : 'answer-note wrong'}>{answer === question.correct ? 'Correcto. ' : 'No exactamente. '}{question.why}</div>}<button className="primary-button quiz-next" onClick={next}>{index === questions.length - 1 ? 'Repetir cuestionario' : 'Siguiente pregunta →'}</button></div></section>
+}
+
+function ArenaModule() {
+  const initialPlayers = [
+    { name: 'Ada Lovelace', score: 860, color: 'cyan', badge: 'DMA master' },
+    { name: 'Kernel Norte', score: 740, color: 'blue', badge: 'IRQ precisa' },
+    { name: 'Los procesos', score: 620, color: 'orange', badge: 'Buffer estable' },
+    { name: 'Tu sistema', score: 0, color: 'green', badge: 'En entrenamiento' },
+  ]
+  const [players, setPlayers] = useState(initialPlayers)
+  const [strategy, setStrategy] = useState('interrupt')
+  const [running, setRunning] = useState(false)
+  const [buffer, setBuffer] = useState(18)
+  const [elapsed, setElapsed] = useState(0)
+  const [result, setResult] = useState('ready')
+  const [feed, setFeed] = useState(['Sala creada: espera a que todos conecten.', 'Reto: evita que el buffer se desborde.'])
+  const [question, setQuestion] = useState(null)
+  const [badges, setBadges] = useState([])
+  const you = players.find((player) => player.name === 'Tu sistema')
+  useEffect(() => {
+    if (!running) return undefined
+    const timer = window.setInterval(() => {
+      setElapsed((value) => value + 1)
+      setPlayers((items) => items.map((player) => player.name === 'Tu sistema' ? { ...player, score: player.score + (strategy === 'dma' ? 18 : strategy === 'interrupt' ? 13 : 8) } : { ...player, score: player.score + (player.score % 3) + 4 }))
+      setBuffer((value) => {
+        const next = value + (strategy === 'polling' ? 7 : strategy === 'interrupt' ? 5 : 3)
+        if (next >= 100) { setRunning(false); setResult('lost'); setFeed((items) => ['KERNEL PANIC: buffer desbordado.', ...items]); return 100 }
+        return next
+      })
+    }, 700)
+    return () => window.clearInterval(timer)
+  }, [running, strategy])
+  const start = () => { setRunning(true); setResult('live'); setFeed((items) => ['La batalla comenzó. Mantén estable el buffer.', ...items]) }
+  const reset = () => { setRunning(false); setBuffer(18); setElapsed(0); setResult('ready'); setQuestion(null); setPlayers(initialPlayers); setFeed(['Sala reiniciada.', 'Reto: evita que el buffer se desborde.']) }
+  const handleEvent = () => {
+    if (!running) return
+    const reduction = strategy === 'dma' ? 28 : strategy === 'interrupt' ? 20 : 11
+    setBuffer((value) => Math.max(0, value - reduction))
+    setPlayers((items) => items.map((player) => player.name === 'Tu sistema' ? { ...player, score: player.score + reduction * 4 } : player))
+    setFeed((items) => ['Dato atendido: -' + reduction + '% de presión.', ...items].slice(0, 5))
+    if (strategy === 'dma' && !badges.includes('DMA master')) setBadges((items) => [...items, 'DMA master'])
+  }
+  const ask = () => setQuestion({ text: 'El buffer crece rápido y hay un bloque grande. ¿Qué estrategia eliges?', options: [['polling', 'Polling'], ['interrupt', 'Interrupción'], ['dma', 'DMA']] })
+  const answer = (value) => { setQuestion(null); setStrategy(value); const correct = value === 'dma'; if (correct) { setBadges((items) => items.includes('Arquitecto de buses') ? items : [...items, 'Arquitecto de buses']); setFeed((items) => ['Decisión correcta: DMA para grandes bloques.', ...items]) } else setFeed((items) => ['Decisión arriesgada: el buffer sigue creciendo.', ...items]) }
+  const sorted = [...players].sort((a, b) => b.score - a.score)
+  return <section><ModuleHeader eyebrow="07 · Multijugador y gamificación" title="Arena de rendimiento" description="Modo aula: compite contra sistemas simulados, toma decisiones rápidas y mantén estable tu memoria antes del kernel panic." /><div className="arena-toolbar panel"><div><span className="room-code">SALA SO-204</span><strong>4 sistemas conectados · modo batalla</strong></div><div className="arena-actions"><button className="secondary-button" onClick={ask}>⚡ Decisión relámpago</button><button className="primary-button" onClick={running ? () => setRunning(false) : start}>{running ? '❚❚ Pausar batalla' : '▶ Iniciar batalla'}</button><button className="reset-button" onClick={reset}>↺</button></div></div><div className="arena-layout"><div className="arena-main"><div className={`stability-card panel ${result}`}><div className="stability-head"><div><span className="section-kicker">GESTOR DE MEMORIA BAJO PRESIÓN</span><h3>{result === 'lost' ? 'KERNEL PANIC' : result === 'live' ? 'Sistema estable' : 'Prepárate para la carga'}</h3></div><span className="arena-status">{result === 'lost' ? 'DERROTA' : result === 'live' ? 'EN VIVO' : 'LISTO'}</span></div><div className="buffer-meter"><div><span>BUFFER DE E/S</span><strong>{buffer}%</strong></div><div><i style={{ width: `${buffer}%` }} /></div><small>{buffer > 75 ? 'Peligro: atiende datos ahora' : 'Capacidad bajo control'}</small></div><div className="strategy-picks">{[['polling', '↻', 'Polling'], ['interrupt', '⚡', 'IRQ'], ['dma', '⇄', 'DMA']].map(([key, icon, label]) => <button className={strategy === key ? 'chosen' : ''} key={key} onClick={() => setStrategy(key)}><span>{icon}</span>{label}<small>{key === 'polling' ? 'CPU ocupada' : key === 'interrupt' ? 'evento' : 'bloque'}</small></button>)}</div><button className="event-button" onClick={handleEvent} disabled={!running}>Generar llegada de datos <span>+ evento</span></button><div className="arena-stats"><span>tiempo <b>{elapsed}s</b></span><span>tu score <b>{you.score}</b></span><span>estado <b>{result === 'lost' ? 'panic' : 'estable'}</b></span></div></div><div className="arena-feed panel"><div className="panel-title"><span>EVENT STREAM</span><small>simulado en tiempo real</small></div>{feed.map((item, index) => <p key={`${item}-${index}`}><i />{item}</p>)}</div></div><aside className="leaderboard panel"><div className="panel-title"><span>LEADERBOARD EN VIVO</span><small>clase · ronda 01</small></div>{sorted.map((player, index) => <div className={`player-row ${player.name === 'Tu sistema' ? 'you' : ''}`} key={player.name}><b>{index + 1}</b><span className={`player-avatar ${player.color}`}>{player.name.charAt(0)}</span><div><strong>{player.name}</strong><small>{player.badge}</small></div><em>{player.score}</em></div>)}<div className="badges"><span className="section-kicker">BADGES DESBLOQUEADOS</span>{badges.length === 0 ? <small>Usa DMA o acierta una decisión.</small> : badges.map((badge) => <b key={badge}>◆ {badge}</b>)}</div></aside></div>{question && <div className="decision-overlay"><div className="decision-card panel"><span className="section-kicker">DECISIÓN RELÁMPAGO</span><h3>{question.text}</h3>{question.options.map(([value, label]) => <button key={value} onClick={() => answer(value)}>{label}</button>)}</div></div>}<details className="technical-note"><summary>Arquitectura para conectar a toda la clase</summary><p>Esta demo usa estado local determinista. En producción, un servidor WebSocket o Firebase Realtime Database emitiría eventos como <code>player_joined</code>, <code>buffer_updated</code>, <code>score_updated</code> y <code>round_finished</code>. El cliente solo renderiza el estado recibido y el servidor valida puntuaciones.</p><pre>{`{ "type": "score_updated", "roomId": "SO-204", "playerId": "student-07", "score": 860, "buffer": 42, "strategy": "dma", "timestamp": 1720000000 }`}</pre></details></section>
 }
 
 export default App

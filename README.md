@@ -11,6 +11,7 @@ Herramienta educativa para una exposición universitaria sobre memoria, rendimie
 - MMIO frente a PMIO con registros ilustrativos.
 - Experimento visual de Polling frente a interrupciones.
 - Quiz autocorregible con explicación inmediata.
+- Arena de clase con leaderboard, eventos, badges y decisiones relámpago.
 
 ## Ejecutar localmente
 
@@ -41,6 +42,33 @@ El módulo de E/S muestra un ejemplo opcional para contrastar una espera activa 
 `select()` espera hasta que un descriptor está listo o hasta que vence un timeout. El ejemplo mide tiempo de pared con `time.perf_counter()` y tiempo de CPU con `time.process_time()`.
 
 La web representa un modelo didáctico: no puede medir directamente la ocupación real del procesador, el bus o el dispositivo.
+
+## Arena multijugador
+
+El módulo `Arena de clase` funciona ahora en modo demo local: simula cuatro participantes, una ronda de estabilidad de buffer, puntuación, feed de eventos, badges y una decisión relámpago. El reto se gana manteniendo el buffer estable y atendiendo eventos con una estrategia adecuada; se pierde cuando llega al 100% y aparece un `KERNEL PANIC` simulado.
+
+Para conectar a toda la clase, se puede sustituir el estado local por un servidor WebSocket o Firebase Realtime Database:
+
+1. El cliente se une a una sala (`roomId`) y recibe el estado de la ronda.
+2. Las acciones se envían como eventos (`strategy_selected`, `data_generated`, `score_updated`).
+3. El servidor valida puntuaciones, controla el tiempo y emite el leaderboard.
+4. El cliente solo anima el estado recibido, evitando que cada estudiante pueda alterar su score localmente.
+
+Evento mínimo sugerido:
+
+```json
+{
+	"type": "score_updated",
+	"roomId": "SO-204",
+	"playerId": "student-07",
+	"score": 860,
+	"buffer": 42,
+	"strategy": "dma",
+	"timestamp": 1720000000
+}
+```
+
+La interfaz muestra este contrato en el módulo para facilitar una futura integración con WebSockets, Firebase o un backend propio.
 
 ## Limitaciones
 
